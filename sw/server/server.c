@@ -12,19 +12,24 @@
 #include <pthread.h>
 #include "server.h"
 #include "circ_queue.h"
+#include "fpga.h"
 
 pcap_t *handle;    /* packet capture handle */
 FILE *fptr;
 u_char *pkt_data = NULL;    /* packet data including the link-layer header */
 struct circ_queue * reque;
 int bsdone_queue[100];
+#define header_size 1078
+#define image_size (512*512)
+
+unsigned int gDATA[512*514];  //Buffer to hold the send data
 
 int main(int argc, char **argv)
 {
 
  char *dev = "eth0";   /* capture device name */
  char errbuf[PCAP_ERRBUF_SIZE];  /* error buffer */
- char filter_exp[] = "host 169.254.82.3";  /* filter expression */
+ char filter_exp[] = "host 169.254.77.77";  /* filter expression */
  struct bpf_program fp;   /* compiled filter program (expression) */
  bpf_u_int32 mask;   /* subnet mask */
  bpf_u_int32 net;   /* ip */
@@ -101,6 +106,7 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
  int size_ip;
  int size_payload;
  int rtn;
+ static int pkt_size =0;
 
  /* define ethernet header */
  ethernet = (struct sniff_ethernet*)(packet);
@@ -137,9 +143,26 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     {
         printf("Configuration data received\n");
         fclose(fptr);
+        rtn = config_fpga("bitfile.bin");
+        if(rtn !=0){
+            printf("FPGA reconfiguration failed");
+            exit(0);
+        }
+        rtn = process_data("lena.bmp");
+        if(rtn !=0){
+            printf("Data processing failed");
+            exit(0);
+        }
+        system("display output.bmp &");
+        system("python ../scripts/pktgen.py output.bmp data.pcap &");
+        send_packets("eth0", "data.pcap");
     } 
     else
+    {
         fwrite((char *)payload,1,size_payload,fptr);
+        //printf("Packet size %d\n",pkt_size);
+        //pkt_size++;
+    }
  }
  return;
 }
@@ -163,6 +186,10 @@ void send_packets(char *device, char *trace_file)
     if (preamble.magic != PCAP_MAGIC)
         error("Not a valid pcap based trace file");
 
+    pkt_data = (u_char *)malloc(sizeof(u_char) * ETHER_MAX_LEN);
+    if (pkt_data == NULL)
+         error("malloc(): cannot allocate memory for pkt_data");
+    memset(pkt_data, 0, ETHER_MAX_LEN);
     while ((ret = fread(&header, sizeof(header), 1, fp))) {
         if (ret == 0)
             printf("fread1(): error reading trace_file");
@@ -191,6 +218,7 @@ void send_packets(char *device, char *trace_file)
         } 
     }
     printf("Success\n");
+    free(pkt_data);
     (void)fclose(fp);
 }
 
@@ -213,12 +241,7 @@ void * transmit_loop()
     if(rtn == 0){
        printf("Request in the queue\n"); 
        printf("Request is %s\n",rcv_pkt);
-       pkt_data = (u_char *)malloc(sizeof(u_char) * ETHER_MAX_LEN);
-       if (pkt_data == NULL)
-         error("malloc(): cannot allocate memory for pkt_data");
-       memset(pkt_data, 0, ETHER_MAX_LEN);
        send_packets("eth0", "ack.pcap");
-       free(pkt_data);
      }
      else
          ;
@@ -274,4 +297,81 @@ void get_config_data(u_char *args, const struct pcap_pkthdr *header, const u_cha
         printf("Got data\n");//fwrite((char *)payload,1,size_payload,fptr);
  }
 return;
+}
+
+int config_fpga(char * partial_file)
+{
+   FILE *prfile;
+   char *buffer;
+   unsigned long fileLen;
+   int rtn;
+   prfile = fopen(partial_file, "rb");
+   if (!prfile)
+   {
+      fprintf(stderr, "Unable to open partial bit file\n");
+      return -1;
+   }
+   //Get file length
+   fseek(prfile, 0, SEEK_END);
+   fileLen=ftell(prfile);
+   fseek(prfile, 0, SEEK_SET);
+   //Allocate memory
+   buffer=(char *)malloc(fileLen+1);
+   if (!buffer)
+   {
+       fprintf(stderr, "Memory error!\n");
+       fclose(prfile);
+       return -1;
+   }
+   //Read file contents into buffer
+   fread(buffer, 1, fileLen, prfile);
+   fclose(prfile);
+   //Send partial bitstream to FPGA
+   rtn = fpga_send_data(ICAP, (unsigned char *) buffer, fileLen, 0);
+   return 0;
+}
+
+int process_data(char * data_file)
+{
+    FILE *in_file;
+    FILE *out_file;
+    char *file_header;
+    char *file_data;
+    int rtn;
+    int sent = 0;
+    int recv = 0;
+    int len = 512*512;
+    in_file = fopen(data_file,"rb");
+    if (!in_file)
+    {
+	fprintf(stderr, "Unable to open image file\n");
+	return -1;
+    }
+    file_header=(char *)malloc(header_size);
+    fread(file_header, 1, header_size, in_file);
+    //Save file data
+    file_data=(char *)malloc(image_size);
+    fread(file_data, 4, image_size, in_file);
+    //Close the image file
+    fclose(in_file);
+    //Open a new file to store the result
+    out_file = fopen("output.bmp","wb");
+    //Store image header
+    fwrite(file_header, 1, header_size, out_file);
+    //Reset user logic
+    rtn = fpga_reg_wr(UCTR_REG,0x0);
+    rtn = fpga_reg_wr(UCTR_REG,0x1);
+    rtn = fpga_reg_wr(CTRL_REG,0x0);
+    rtn = fpga_reg_wr(CTRL_REG,0x1);
+    printf("Streaming filter");
+    while(sent < len){
+        rtn = fpga_send_data(USERPCIE1,(unsigned char *) file_data+sent,4096,1);
+	rtn = fpga_recv_data(USERPCIE1,(unsigned char *) gDATA+sent,4096,1);
+	sent += 4096;
+    }
+    fwrite(gDATA,1,image_size,out_file);
+    fclose(out_file);
+    free(file_header);
+    free(file_data);
+    return 0;
 }
