@@ -94,12 +94,12 @@ def eth_pack_decode(in_file_name = None, out_file_name = None):
     g = open(out_file_name,'wb')
     file_len = len(data)
     print "total file size" + str(file_len)
-    start = 54
-    remain_len = file_len-54
-    while remain_len >= 1030:
+    start = 24+16+14+20 #file+packet+ethernet+ip
+    remain_len = file_len-74
+    while remain_len >= 1050:
         g.write(data[start:start+1000])
-        start += 1030
-        remain_len -= 1030
+        start += 1050
+        remain_len -= 1050
     
     if remain_len != 0:
         g.write(data[start:start+remain_len])
@@ -117,7 +117,7 @@ def calc_ip_crc(a):
 
 import sys
 if __name__ == "__main__":
-    #if int(sys.argv[1]) == 0:
-        eth_pkt_gen(sys.argv[1],sys.argv[2])
-    #else:
-    #    eth_pack_decode("ws_capt_file.pcap",sys.argv[2])
+    if int(sys.argv[1]) == 0:
+        eth_pkt_gen(sys.argv[2],sys.argv[3])
+    else:
+        eth_pack_decode(sys.argv[2],sys.argv[3])
