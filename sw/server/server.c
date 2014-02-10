@@ -106,7 +106,8 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
  int size_ip;
  int size_payload;
  int rtn;
- static int pkt_size =0;
+ static int process_state =0;
+ static int pkt_size=0;
 
  /* define ethernet header */
  ethernet = (struct sniff_ethernet*)(packet);
@@ -143,7 +144,9 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     {
         printf("Configuration data received\n");
         fclose(fptr);
-        rtn = config_fpga("bitfile.bin");
+        process_state = 1;
+        fptr = fopen("indata.bin","wb");
+        /*rtn = config_fpga("bitfile.bin");
         if(rtn !=0){
             printf("FPGA reconfiguration failed");
             exit(0);
@@ -154,14 +157,29 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
             exit(0);
         }
         system("display output.bmp &");
-        system("python ../scripts/pktgen.py output.bmp data.pcap &");
-        send_packets("eth0", "data.pcap");
+        system("python ../scripts/pktgen.py output.bmp data.pcap");
+        send_packets("eth0", "data.pcap");*/
     } 
+    else if(strcmp((char *)payload,"DATA_DONE") == 0)
+    {
+        printf("Input data received\n");
+        fclose(fptr);
+        process_state = 2;
+    }
+    else if(strcmp((char *)payload,"DATA_REQ")==0)
+    {
+        printf("Data request received\n");
+        system("python ../scripts/pktgen.py indata.bin data.pcap");
+        send_packets("eth0", "data.pcap");
+        send_packets("eth0", "data_done_ack.pcap");
+    }
     else
     {
         fwrite((char *)payload,1,size_payload,fptr);
-        //printf("Packet size %d\n",pkt_size);
-        //pkt_size++;
+        //if (process_state == 1){
+        //  printf("Packet no %d\n",pkt_size);
+        //  pkt_size++;
+        //}
     }
  }
  return;
