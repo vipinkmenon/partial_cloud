@@ -29,7 +29,7 @@ def eth_pkt_gen(in_file_name = None,out_file_name = None,offset = 0):
     ip_ttl  = "\x3D"
     ip_prot = "\xFE"
     ip_crc  = "\x00\x00"
-    ip_src  = "\xA9\xFE\x52\x03"
+    ip_src  = "\xA9\xFE\x4D\x4D"
     ip_dst  = "\xFF\xFF\xFF\xFF"
    
     
