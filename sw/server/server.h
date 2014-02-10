@@ -56,3 +56,5 @@ void get_config_data(u_char *args, const struct pcap_pkthdr *header, const u_cha
 void send_packets(char *device, char *trace_file);
 void * recv_loop();
 void * transmit_loop();
+int config_fpga(char * partial_file);
+int process_data(char * data_file);
