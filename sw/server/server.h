@@ -57,4 +57,4 @@ void send_packets(char *device, char *trace_file);
 void * recv_loop();
 void * transmit_loop();
 int config_fpga(char * partial_file);
-int process_data(char * data_file);
+int process_data(char * data_file, char * output_file);

@@ -146,30 +146,27 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
         fclose(fptr);
         process_state = 1;
         fptr = fopen("indata.bin","wb");
-        /*rtn = config_fpga("bitfile.bin");
+        rtn = config_fpga("bitfile.bin");
         if(rtn !=0){
             printf("FPGA reconfiguration failed");
             exit(0);
         }
-        rtn = process_data("lena.bmp");
-        if(rtn !=0){
-            printf("Data processing failed");
-            exit(0);
-        }
-        system("display output.bmp &");
-        system("python ../scripts/pktgen.py output.bmp data.pcap");
-        send_packets("eth0", "data.pcap");*/
     } 
     else if(strcmp((char *)payload,"DATA_DONE") == 0)
     {
         printf("Input data received\n");
         fclose(fptr);
         process_state = 2;
+        rtn = process_data("indata.bin","outdata.bin");
+        if(rtn !=0){
+            printf("Data processing failed");
+            exit(0);
+        }
+        system("python ../scripts/pktgen.py 0 outdata.bin data.pcap");
     }
     else if(strcmp((char *)payload,"DATA_REQ")==0)
     {
         printf("Data request received\n");
-        system("python ../scripts/pktgen.py indata.bin data.pcap");
         send_packets("eth0", "data.pcap");
         send_packets("eth0", "data_done_ack.pcap");
     }
@@ -349,7 +346,7 @@ int config_fpga(char * partial_file)
    return 0;
 }
 
-int process_data(char * data_file)
+int process_data(char * data_file, char * output_file)
 {
     FILE *in_file;
     FILE *out_file;
@@ -373,7 +370,7 @@ int process_data(char * data_file)
     //Close the image file
     fclose(in_file);
     //Open a new file to store the result
-    out_file = fopen("output.bmp","wb");
+    out_file = fopen(output_file,"wb");
     //Store image header
     fwrite(file_header, 1, header_size, out_file);
     //Reset user logic
