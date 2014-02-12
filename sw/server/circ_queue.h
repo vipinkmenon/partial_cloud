@@ -12,7 +12,7 @@
 struct circ_queue {
 	unsigned int writeIndex;
 	unsigned int readIndex;
-	char ** vals;
+	int * vals;
 	unsigned int len;
 };
 typedef struct circ_queue circ_queue;
@@ -27,13 +27,13 @@ circ_queue * init_circ_queue(int len);
  * Pushes a pair of unsigned int values into the specified queue at the head. 
  * Returns 0 on success, non-zero if there is no more space in the queue.
  */
-int push_circ_queue(circ_queue * q, char *val);
+int push_circ_queue(circ_queue * q, int val);
 
 /**
  * Pops a pair of unsigned int values out of the specified queue from the tail.
  * Returns 0 on success, non-zero if the queue is empty.
  */
-int pop_circ_queue(circ_queue * q, char * val);
+int pop_circ_queue(circ_queue * q, int * val);
 
 /**
  * Frees the resources associated with the specified circ_queue.

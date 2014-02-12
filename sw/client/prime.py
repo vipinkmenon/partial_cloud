@@ -11,16 +11,16 @@ import pktgen
 class PrestoFrame(wx.Frame):
     def __init__(self,parent):
         self.title = "PRime"
-        wx.Frame.__init__(self,parent,-1,self.title,wx.DefaultPosition,size=(600,630),style= wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.MINIMIZE_BOX)
-        self.tool_pane = wx.Panel(self,-1,(0,47),(80,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
-        self.image_pane = wx.Panel(self,-1,(80,47),(593,559),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
+        wx.Frame.__init__(self,parent,-1,self.title,wx.DefaultPosition,size=(552,588),style= wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.MINIMIZE_BOX)
+        self.tool_pane = wx.Panel(self,-1,(0,50),(40,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
+        self.image_pane = wx.Panel(self,-1,(40,50),(512,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
         self.tool_pane.SetBackgroundColour("gray")
         self.image_pane.SetBackgroundColour("white")
         self.initStatusBar()
         self.createMenuBar()
         self.createToolBar()
         self.Bind(wx.EVT_CLOSE,self.OnCloseWindow)
-        text = wx.StaticText(self.tool_pane,-1,"FILTERS",(10,20),(40,20))
+        text = wx.StaticText(self.tool_pane,-1,"FILT",(0,20),(50,20))
         self.createToolBox()
         self.State = "0"
         self.in_filename = None
@@ -121,7 +121,7 @@ class PrestoFrame(wx.Frame):
             self.OnSaveAs(event)
 
     def createToolBar(self):
-        self.toolbar = wx.ToolBar(self,-1,(50,100),(512,50),wx.TB_HORIZONTAL)
+        self.toolbar = wx.ToolBar(self,-1,(0,0),(512,50),wx.TB_HORIZONTAL)
         #self.toolbar.SetMargins( [4,4] ) 
         ftool = self.toolbar.AddLabelTool(wx.ID_ANY, 'Open', wx.Bitmap('icons/folder.png'),wx.NullBitmap, wx.ITEM_NORMAL, "","Open Image" ) 
         stool = self.toolbar.AddLabelTool(wx.ID_ANY, 'Save', wx.Bitmap('icons/save.png'),wx.NullBitmap, wx.ITEM_NORMAL, "", "Save Image" )
@@ -147,8 +147,13 @@ class PrestoFrame(wx.Frame):
         os.system('start capture.bat &')
         pktgen.eth_pkt_gen(self.in_filename,"lena.pcap")
         pktgen.eth_pkt_gen('bitstreams/'+filt_name+'.bin',"config.pcap")
+        if filt_type == "s":
+            pktgen.eth_pkt_gen("stream_filt.c","sw.pcap")
+        else:
+            pktgen.eth_pkt_gen("conv_filt.c","sw.pcap")
         os.system('bittwist -i 2 req.pcap')
         os.system('bittwist -i 2 config.pcap')
+        os.system('bittwist -i 2 sw.pcap')
         os.system('bittwist -i 2 bs_done.pcap')
         os.system('bittwist -i 2 lena.pcap')
         os.system('bittwist -i 2 data_done.pcap')
@@ -163,12 +168,23 @@ class PrestoFrame(wx.Frame):
         self.image_pane.Show()
         
     def createToolBox(self):     
-        threshold = wx.BitmapButton(self.tool_pane, 1, wx.Bitmap('icons/thresholder.png'),(10,50))
-        invert = wx.BitmapButton(self.tool_pane, 2, wx.Bitmap('icons/inverter.jpeg'),(10,100))
-        slicer = wx.BitmapButton(self.tool_pane, 3, wx.Bitmap('icons/slicer.jpeg'),(10,150))       
-        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"thresholder","c"),threshold)
-        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"inverter","c"),invert)
-        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"slicer","c"),slicer)
+        tfilt = wx.BitmapButton(self.tool_pane, 1, wx.Bitmap('icons/thresholder.png'),(0,50))
+        ifilt = wx.BitmapButton(self.tool_pane, 2, wx.Bitmap('icons/inverter.jpeg'),(0,100))
+        rfilt = wx.BitmapButton(self.tool_pane, 3, wx.Bitmap('icons/slicer.jpeg'),(0,150)) 
+        lfilt = wx.BitmapButton(self.tool_pane, 4, wx.Bitmap('icons/laplace.gif'),(0,200)) 
+        gfilt = wx.BitmapButton(self.tool_pane, 5, wx.Bitmap('icons/gaussian.png'),(0,260))
+        sfilt = wx.BitmapButton(self.tool_pane, 6, wx.Bitmap('icons/sobel.png'),(0,310))
+	bfilt = wx.BitmapButton(self.tool_pane, 7, wx.Bitmap('icons/box.jpeg'),(0,360))
+	efilt = wx.BitmapButton(self.tool_pane, 8, wx.Bitmap('icons/emboss.jpeg'),(0,410))
+      
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"thresholder","s"),tfilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"inverter","s"),ifilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"slicer","s"),rfilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"laplace","c"),lfilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"gaussian","c"),gfilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"sobel","c"),sfilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"box","c"),bfilt)
+        self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"emboss","c"),efilt)
         
         
 class PRestoAbout(wx.Dialog):

@@ -106,8 +106,11 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
  int size_ip;
  int size_payload;
  int rtn;
+ int status;
  static int process_state =0;
  static int pkt_size=0;
+ static int proccess_no = 0;
+ char command[100];
 
  /* define ethernet header */
  ethernet = (struct sniff_ethernet*)(packet);
@@ -130,7 +133,7 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     if(strcmp((char *)payload,"REQ_CONFIG") == 0)
     {
       printf("Configuration request received\n");
-      rtn = push_circ_queue(reque,(char *)payload);
+      rtn = push_circ_queue(reque,proccess_no);
       if(rtn == 1) {
         printf("Error queue is full\n");
         send_packets("eth0", "nak.pcap");
@@ -145,24 +148,41 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
         printf("Configuration data received\n");
         fclose(fptr);
         process_state = 1;
-        fptr = fopen("indata.bin","wb");
+        fptr = fopen("code.c","wb");
         rtn = config_fpga("bitfile.bin");
         if(rtn !=0){
             printf("FPGA reconfiguration failed");
             exit(0);
         }
     } 
+    else if(strcmp((char *)payload,"CODE_DONE") == 0)
+    {
+        printf("Software code received\n");
+        fclose(fptr);
+        process_state = 2;
+        fptr = fopen("indata.bin","wb");
+        sprintf (command, "gcc fpga.c %s -o %s","code.c","process");
+        status = system(command);
+        rtn = WEXITSTATUS(status);
+        if(rtn != 0){
+            printf("Code compilation failed\n");
+            return;
+        }
+    } 
     else if(strcmp((char *)payload,"DATA_DONE") == 0)
     {
         printf("Input data received\n");
         fclose(fptr);
-        process_state = 2;
-        rtn = process_data("indata.bin","outdata.bin");
-        if(rtn !=0){
-            printf("Data processing failed");
-            exit(0);
+        process_state = 3;
+        sprintf (command, "./process %s %s","indata.bin","outdata.bin");
+        status = system(command);
+        rtn = WEXITSTATUS(status);
+        if(rtn != 0){
+            printf("Execution failed\n");
+            return;
         }
-        system("python ../scripts/pktgen.py 0 outdata.bin data.pcap");
+        else
+            system("python pktgen.py 0 outdata.bin data.pcap");
     }
     else if(strcmp((char *)payload,"DATA_REQ")==0)
     {
@@ -247,15 +267,13 @@ void * recv_loop()
 
 void * transmit_loop()
 {
-  char * rcv_pkt;
-  rcv_pkt = malloc(20*sizeof(char));
+  int rcv_pkt;
   int rtn;
   while(1){
     //check any data in the request buffer
-    rtn = pop_circ_queue(reque,rcv_pkt);
+    rtn = pop_circ_queue(reque,&rcv_pkt);
     if(rtn == 0){
        printf("Request in the queue\n"); 
-       printf("Request is %s\n",rcv_pkt);
        send_packets("eth0", "ack.pcap");
      }
      else
@@ -344,49 +362,4 @@ int config_fpga(char * partial_file)
    //Send partial bitstream to FPGA
    rtn = fpga_send_data(ICAP, (unsigned char *) buffer, fileLen, 0);
    return 0;
-}
-
-int process_data(char * data_file, char * output_file)
-{
-    FILE *in_file;
-    FILE *out_file;
-    char *file_header;
-    char *file_data;
-    int rtn;
-    int sent = 0;
-    int recv = 0;
-    int len = 512*512;
-    in_file = fopen(data_file,"rb");
-    if (!in_file)
-    {
-	fprintf(stderr, "Unable to open image file\n");
-	return -1;
-    }
-    file_header=(char *)malloc(header_size);
-    fread(file_header, 1, header_size, in_file);
-    //Save file data
-    file_data=(char *)malloc(image_size);
-    fread(file_data, 4, image_size, in_file);
-    //Close the image file
-    fclose(in_file);
-    //Open a new file to store the result
-    out_file = fopen(output_file,"wb");
-    //Store image header
-    fwrite(file_header, 1, header_size, out_file);
-    //Reset user logic
-    rtn = fpga_reg_wr(UCTR_REG,0x0);
-    rtn = fpga_reg_wr(UCTR_REG,0x1);
-    rtn = fpga_reg_wr(CTRL_REG,0x0);
-    rtn = fpga_reg_wr(CTRL_REG,0x1);
-    printf("Streaming filter");
-    while(sent < len){
-        rtn = fpga_send_data(USERPCIE1,(unsigned char *) file_data+sent,4096,1);
-	rtn = fpga_recv_data(USERPCIE1,(unsigned char *) gDATA+sent,4096,1);
-	sent += 4096;
-    }
-    fwrite(gDATA,1,image_size,out_file);
-    fclose(out_file);
-    free(file_header);
-    free(file_data);
-    return 0;
 }
