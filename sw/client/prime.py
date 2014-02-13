@@ -6,7 +6,7 @@ import wx
 import os
 import shutil
 from wx import html
-import pktgen
+import scripts.pktgen as pktgen
 
 class PrestoFrame(wx.Frame):
     def __init__(self,parent):
@@ -144,21 +144,21 @@ class PrestoFrame(wx.Frame):
                 os.remove(self.filt_filename)
         except:
             pass
-        os.system('start capture.bat &')
-        pktgen.eth_pkt_gen(self.in_filename,"lena.pcap")
+        os.system('start scripts\capture.bat &')
+        pktgen.eth_pkt_gen(self.in_filename,"image.pcap")
         pktgen.eth_pkt_gen('bitstreams/'+filt_name+'.bin',"config.pcap")
         if filt_type == "s":
-            pktgen.eth_pkt_gen("stream_filt.c","sw.pcap")
+            pktgen.eth_pkt_gen("swcode/stream_filt.c","sw.pcap")
         else:
-            pktgen.eth_pkt_gen("conv_filt.c","sw.pcap")
-        os.system('bittwist -i 2 req.pcap')
+            pktgen.eth_pkt_gen("swcode/conv_filt.c","sw.pcap")
+        os.system('bittwist -i 2 packets/req.pcap')
         os.system('bittwist -i 2 config.pcap')
-        os.system('bittwist -i 2 bs_done.pcap')
+        os.system('bittwist -i 2 packets/bs_done.pcap')
         os.system('bittwist -i 2 sw.pcap')
-        os.system('bittwist -i 2 code_done.pcap')        
-        os.system('bittwist -i 2 lena.pcap')
-        os.system('bittwist -i 2 data_done.pcap')
-        os.system('bittwist -i 2 data_req.pcap')
+        os.system('bittwist -i 2 packets/code_done.pcap')        
+        os.system('bittwist -i 2 image.pcap')
+        os.system('bittwist -i 2 packets/data_done.pcap')
+        os.system('bittwist -i 2 packets/data_req.pcap')
         while 1:
             if os.path.exists('lock') == False:
                 pktgen.eth_pack_decode("receivedata.pcap","filtered.bmp")
