@@ -11,9 +11,9 @@ import pktgen
 class PrestoFrame(wx.Frame):
     def __init__(self,parent):
         self.title = "PRime"
-        wx.Frame.__init__(self,parent,-1,self.title,wx.DefaultPosition,size=(552,588),style= wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.MINIMIZE_BOX)
-        self.tool_pane = wx.Panel(self,-1,(0,50),(40,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
-        self.image_pane = wx.Panel(self,-1,(40,50),(512,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
+        wx.Frame.__init__(self,parent,-1,self.title,wx.DefaultPosition,size=(560,630),style= wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.MINIMIZE_BOX)
+        self.tool_pane = wx.Panel(self,-1,(0,45),(40,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
+        self.image_pane = wx.Panel(self,-1,(40,45),(512,512),style= wx.TAB_TRAVERSAL|wx.NO_BORDER)
         self.tool_pane.SetBackgroundColour("gray")
         self.image_pane.SetBackgroundColour("white")
         self.initStatusBar()
