@@ -144,26 +144,19 @@ class PrestoFrame(wx.Frame):
                 os.remove(self.filt_filename)
         except:
             pass
-        os.system('start scripts\capture.bat &')
+        #os.system('start scripts\capture.bat &')
         pktgen.eth_pkt_gen(self.in_filename,"image.pcap")
         pktgen.eth_pkt_gen('bitstreams/'+filt_name+'.bin',"config.pcap")
         if filt_type == "s":
             pktgen.eth_pkt_gen("swcode/stream_filt.c","sw.pcap")
         else:
             pktgen.eth_pkt_gen("swcode/conv_filt.c","sw.pcap")
-        os.system('bittwist -i 2 packets/req.pcap')
-        os.system('bittwist -i 2 config.pcap')
-        os.system('bittwist -i 2 packets/bs_done.pcap')
-        os.system('bittwist -i 2 sw.pcap')
-        os.system('bittwist -i 2 packets/code_done.pcap')        
-        os.system('bittwist -i 2 image.pcap')
-        os.system('bittwist -i 2 packets/data_done.pcap')
-        os.system('bittwist -i 2 packets/data_req.pcap')
-        while 1:
-            if os.path.exists('lock') == False:
-                pktgen.eth_pack_decode("receivedata.pcap","filtered.bmp")
-                break                  
-        img = wx.Image("filtered.bmp", wx.BITMAP_TYPE_ANY).ConvertToBitmap()
+        os.system('scripts\send_recvr 2 dummy')
+        #while 1:
+        #    if os.path.exists('lock') == False:
+        #        pktgen.eth_pack_decode("receivedata.pcap","filtered.bmp")
+        #        break                  
+        img = wx.Image("receivedata.bmp", wx.BITMAP_TYPE_ANY).ConvertToBitmap()
         imageCtrl = wx.StaticBitmap(self.image_pane, wx.ID_ANY,img,(0, 0),(img.GetWidth(), img.GetHeight())) 
         self.image_pane.Hide()
         self.image_pane.Show()
@@ -175,8 +168,8 @@ class PrestoFrame(wx.Frame):
         lfilt = wx.BitmapButton(self.tool_pane, 4, wx.Bitmap('icons/laplace.gif'),(0,200)) 
         gfilt = wx.BitmapButton(self.tool_pane, 5, wx.Bitmap('icons/gaussian.png'),(0,260))
         sfilt = wx.BitmapButton(self.tool_pane, 6, wx.Bitmap('icons/sobel.png'),(0,310))
-	bfilt = wx.BitmapButton(self.tool_pane, 7, wx.Bitmap('icons/box.jpeg'),(0,360))
-	efilt = wx.BitmapButton(self.tool_pane, 8, wx.Bitmap('icons/emboss.jpeg'),(0,410))
+        bfilt = wx.BitmapButton(self.tool_pane, 7, wx.Bitmap('icons/box.jpeg'),(0,360))
+        efilt = wx.BitmapButton(self.tool_pane, 8, wx.Bitmap('icons/emboss.jpeg'),(0,410))
       
         self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"thresholder","s"),tfilt)
         self.Bind(wx.EVT_BUTTON,lambda event: self.OnFilter(event,"inverter","s"),ifilt)
