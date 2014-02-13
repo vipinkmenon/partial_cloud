@@ -67,7 +67,7 @@ struct fpga_dev *fpgaDev;
 bool fpgaInUse = false;
 
 /* Initialize/finalize functions. */
-//__attribute__((constructor))
+__attribute__((constructor))
 int fpga_init() {
 
 	if(!fpgaInUse){
@@ -242,7 +242,7 @@ int fpga_send_data(DMA_PNT dest, unsigned char * senddata, int sendlen, unsigned
                 rtn = write(fpgaDev->intrFds[1], senddata+sent, amt);         
             }
             while(1){
-               //fpga_wait_interrupt(config);          //Wait for interrupt from first buffer
+               fpga_wait_interrupt(config);          //Wait for interrupt from first buffer
                if (sent < len) {
            	   fpga_reg_wr(0x50,rtn);
        //          fpga_reg_wr(PC_DDR_DMA_FPGA_REG,ddr_addr); 

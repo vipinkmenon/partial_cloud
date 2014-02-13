@@ -132,11 +132,13 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
  if (size_payload > 0) {
     if(strcmp((char *)payload,"REQ_CONFIG") == 0)
     {
-      printf("Configuration request received\n");
+      #ifdef DEBUG
+          printf("Configuration request received\n");
+      #endif
       rtn = push_circ_queue(reque,proccess_no);
       if(rtn == 1) {
         printf("Error queue is full\n");
-        send_packets("eth0", "nak.pcap");
+        send_packets("eth0", "packets/nak.pcap");
         return;
       }
       else{
@@ -145,7 +147,9 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     }   
     else if(strcmp((char *)payload,"BS_DONE") == 0)
     {
+        #ifdef DEBUG
         printf("Configuration data received\n");
+        #endif
         fclose(fptr);
         process_state = 1;
         fptr = fopen("code.c","wb");
@@ -157,7 +161,9 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     } 
     else if(strcmp((char *)payload,"CODE_DONE") == 0)
     {
-        printf("Software code received\n");
+        #ifdef DEBUG
+            printf("Software code received\n");
+        #endif
         fclose(fptr);
         process_state = 2;
         fptr = fopen("indata.bin","wb");
@@ -171,7 +177,9 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
     } 
     else if(strcmp((char *)payload,"DATA_DONE") == 0)
     {
-        printf("Input data received\n");
+        #ifdef DEBUG
+            printf("Input data received\n");
+        #endif
         fclose(fptr);
         process_state = 3;
         sprintf (command, "./process %s %s","indata.bin","outdata.bin");
@@ -182,13 +190,15 @@ void get_packet(u_char *args, const struct pcap_pkthdr *header, const u_char *pa
             return;
         }
         else
-            system("python pktgen.py 0 outdata.bin data.pcap");
+            system("python scripts/pktgen.py 0 outdata.bin data.pcap");
     }
     else if(strcmp((char *)payload,"DATA_REQ")==0)
     {
-        printf("Data request received\n");
+        #ifdef DEBUG
+            printf("Data request received\n");
+        #endif
         send_packets("eth0", "data.pcap");
-        send_packets("eth0", "data_done_ack.pcap");
+        send_packets("eth0", "packets/data_done_ack.pcap");
     }
     else
     {
@@ -252,7 +262,9 @@ void send_packets(char *device, char *trace_file)
             printf("%s", pcap_geterr(handle));
         } 
     }
-    printf("Success\n");
+    #ifdef DEBUG
+        printf("Data sending Success\n");
+    #endif
     free(pkt_data);
     (void)fclose(fp);
 }
@@ -273,63 +285,14 @@ void * transmit_loop()
     //check any data in the request buffer
     rtn = pop_circ_queue(reque,&rcv_pkt);
     if(rtn == 0){
-       printf("Request in the queue\n"); 
-       send_packets("eth0", "ack.pcap");
+       #ifdef DEBUG
+           printf("Request in the queue\n"); 
+       #endif
+       send_packets("eth0", "packets/ack.pcap");
      }
      else
          ;
   }
-}
-
-/*
- * dissect/print packet
- */
-void get_config_data(u_char *args, const struct pcap_pkthdr *header, const u_char *packet)
-{
- 
- /* declare pointers to packet headers */
- const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
- const struct sniff_ip *ip;              /* The IP header */
- const char *payload;                    /* Packet payload */
- int size_ip;
- int size_payload;
- int rtn;
-
- /* define ethernet header */
- ethernet = (struct sniff_ethernet*)(packet);
- 
- /* define/compute ip header offset */
- ip = (struct sniff_ip*)(packet + SIZE_ETHERNET);
- size_ip = IP_HL(ip)*4;
- if (size_ip < 20) {
-  printf("   * Invalid IP header length: %u bytes\n", size_ip);
-  return;
- }
-  
- /* define ip payload (segment)*/
- payload = (u_char *)(packet + SIZE_ETHERNET + size_ip);
- 
- /* compute tcp payload (segment) size */
- size_payload = ntohs(ip->ip_len) - size_ip;
- 
- if (size_payload > 0) {
-    //if(strcmp((char *)payload,"REQ CONFIG") != 0)
-    //{
-      //printf("Configuration data\n");
-      //dump_file = pcap_dump_open(handle,"outputfile");
-      
-      //fclose(fptr);
-      //pcap_dump_close(dump_file);
-    //}
-    if(strcmp((char *)payload,"BS_DONE") == 0)
-    {
-        printf("Configuration data received\n");
-        fclose(fptr);
-    }
-    else
-        printf("Got data\n");//fwrite((char *)payload,1,size_payload,fptr);
- }
-return;
 }
 
 int config_fpga(char * partial_file)
